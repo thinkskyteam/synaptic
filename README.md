@@ -1,4 +1,5 @@
 # Synap-Forge-LLM
+![Local photo](./images/image.webp)
 
 [![License: MIT](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://opensource.org/license/apache-2-0)
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?logo=rust&logoColor=white)](https://www.rust-lang.org)
