@@ -1,10 +1,15 @@
 use crate::openai::http_entities::{AppState, TextGeneration};
-use crate::openai::models::{ChatCompletionChoice, ChatCompletionResponseMessage, CompletionChoice, CreateChatCompletionRequest, CreateChatCompletionResponse, CreateCompletionRequest, CreateCompletionResponse, CreateEmbeddingRequest, CreateEmbeddingResponse, DeleteModelResponse, Embedding, ListModelsResponse, Model, Stop};
+use crate::openai::models::{
+    ChatCompletionChoice, ChatCompletionResponseMessage, CompletionChoice,
+    CreateChatCompletionRequest, CreateChatCompletionResponse, CreateCompletionRequest,
+    CreateCompletionResponse, CreateEmbeddingRequest, CreateEmbeddingResponse, DeleteModelResponse,
+    Embedding, ListModelsResponse, Model, Stop,
+};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -19,7 +24,7 @@ pub async fn health(State(state): State<AppState>) -> &'static str {
 // pub async fn run_completions(
 //     State(state): State<AppState>,
 //     Json(request): Json<CompletionsRequest>) -> impl IntoResponse {
-//     
+//
 //     let request_tuple: (AppState, Option<f64>, Option<f64>, Option<usize>) = (
 //         state,
 //         request.temperature,
@@ -55,13 +60,10 @@ pub async fn create_chat_completion(
 
 pub async fn create_completion(
     State(state): State<AppState>,
-    Json(request): Json<CreateCompletionRequest>) -> impl IntoResponse {
-    let request_tuple: (AppState, Option<f64>, Option<f64>, Option<usize>) = (
-        state,
-        request.temperature,
-        request.top_p,
-        None,
-    );
+    Json(request): Json<CreateCompletionRequest>,
+) -> impl IntoResponse {
+    let request_tuple: (AppState, Option<f64>, Option<f64>, Option<usize>) =
+        (state, request.temperature, request.top_p, None);
     let text_gen = TextGeneration::from(request_tuple);
     let result = text_gen.create_completion_service(request);
 
@@ -83,7 +85,8 @@ pub async fn create_completion(
 
 pub async fn create_embedding(
     State(state): State<AppState>,
-    Json(req): Json<CreateEmbeddingRequest>) -> impl IntoResponse {
+    Json(req): Json<CreateEmbeddingRequest>,
+) -> impl IntoResponse {
     // TODO: Process request and return response
     let response = CreateEmbeddingResponse {
         object: "list".to_string(),
@@ -123,12 +126,13 @@ pub async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
 
 pub async fn retrieve_model(
     State(state): State<AppState>,
-    Path(model_id): Path<Stop>) -> impl IntoResponse {
+    Path(model_id): Path<Stop>,
+) -> impl IntoResponse {
     // TODO: Fetch model details and return response
 
     let option_model_id = match model_id {
         Stop::String(s) => Some(s), // Extract String value
-        Stop::Array(_) => None, // Return None or handle as needed
+        Stop::Array(_) => None,     // Return None or handle as needed
     };
     let response = Model {
         id: option_model_id.unwrap(),
@@ -142,11 +146,12 @@ pub async fn retrieve_model(
 
 pub async fn delete_model(
     State(state): State<AppState>,
-    Path(model_id): Path<Stop>) -> impl IntoResponse {
+    Path(model_id): Path<Stop>,
+) -> impl IntoResponse {
     // TODO: Delete model and return response
     let option_model_id = match model_id {
         Stop::String(s) => Some(s), // Extract String value
-        Stop::Array(_) => None, // Return None or handle as needed
+        Stop::Array(_) => None,     // Return None or handle as needed
     };
     let response = DeleteModelResponse {
         id: option_model_id.unwrap(),

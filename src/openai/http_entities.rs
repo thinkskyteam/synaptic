@@ -7,7 +7,7 @@ use tokenizers::Tokenizer;
 use tracing::info;
 
 use crate::core::output_stream::TokenOutputStream;
-use crate::openai::models::{CreateCompletionRequest, Prompt};
+use crate::openai::models::CreateCompletionRequest;
 
 #[derive(Serialize, Deserialize)]
 pub struct CompletionsRequest {
@@ -20,11 +20,24 @@ pub struct CompletionsRequest {
 }
 
 impl CompletionsRequest {
-    pub fn new(model: String, prompt: String, max_tokens: i32, temperature: Option<f64>, top_p: Option<f64>, top_k: Option<usize>) -> Self {
-        Self { model, prompt, max_tokens, temperature, top_p, top_k }
+    pub fn new(
+        model: String,
+        prompt: String,
+        max_tokens: i32,
+        temperature: Option<f64>,
+        top_p: Option<f64>,
+        top_k: Option<usize>,
+    ) -> Self {
+        Self {
+            model,
+            prompt,
+            max_tokens,
+            temperature,
+            top_p,
+            top_k,
+        }
     }
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct CompletionResponse {
@@ -37,8 +50,22 @@ pub struct CompletionResponse {
 }
 
 impl CompletionResponse {
-    pub fn new(id: String, object: String, created: i64, model: String, choices: Vec<Choice>, usage: Usage) -> Self {
-        Self { id, object, created, model, choices, usage }
+    pub fn new(
+        id: String,
+        object: String,
+        created: i64,
+        model: String,
+        choices: Vec<Choice>,
+        usage: Usage,
+    ) -> Self {
+        Self {
+            id,
+            object,
+            created,
+            model,
+            choices,
+            usage,
+        }
     }
 }
 
@@ -52,7 +79,12 @@ pub struct Choice {
 
 impl Choice {
     pub fn new(text: String, index: i64, logprobs: Option<f64>, finish_reason: String) -> Self {
-        Self { text, index, logprobs, finish_reason }
+        Self {
+            text,
+            index,
+            logprobs,
+            finish_reason,
+        }
     }
 }
 
@@ -65,9 +97,12 @@ pub struct Usage {
 
 impl Usage {
     pub fn new(prompt_tokens: i64, completion_tokens: i64, total_tokens: i64) -> Self {
-        Self { prompt_tokens, completion_tokens, total_tokens }
+        Self {
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        }
     }
-
 
     pub fn prompt_tokens(&self) -> i64 {
         self.prompt_tokens
@@ -79,7 +114,6 @@ impl Usage {
         self.total_tokens
     }
 }
-
 
 // #[derive(Deserialize)]
 // pub struct Prompt {
@@ -161,14 +195,11 @@ impl TextGeneration {
 
         let origin_config = self.config.clone();
 
-        let eos_token = self.config
-            .eos_token_id
-            .or_else(|| {
-                let option = self.tokenizer.tokenizer().token_to_id("</s>").unwrap();
-                let toks = LlamaEosToks::Single(option);
-                Some(toks)
-            });
-
+        let eos_token = self.config.eos_token_id.or_else(|| {
+            let option = self.tokenizer.tokenizer().token_to_id("</s>").unwrap();
+            let toks = LlamaEosToks::Single(option);
+            Some(toks)
+        });
 
         let eos_token_value = match eos_token.clone().unwrap() {
             LlamaEosToks::Single(value) => value,
@@ -185,7 +216,6 @@ impl TextGeneration {
         let mut index_pos = 0;
         let mut token_generated = 0;
 
-
         for index in 0..max_tokens {
             let (context_size, context_index) = if cache.use_kv_cache && index > 0 {
                 (1, index_pos)
@@ -201,7 +231,8 @@ impl TextGeneration {
                 .unsqueeze(0)
                 .unwrap();
 
-            let logits = self.model
+            let logits = self
+                .model
                 .forward(&input, context_index, &mut cache)
                 .unwrap()
                 .squeeze(0)
@@ -215,7 +246,8 @@ impl TextGeneration {
                     &logits,
                     self.repeat_penalty,
                     &tokens[start_at..],
-                ).unwrap()
+                )
+                .unwrap()
             };
             index_pos += ctxt.len();
 
@@ -247,9 +279,10 @@ impl TextGeneration {
             }
             let dt = start_gen.elapsed();
             info!(
-                    "{} tokens generated ({} token/s)",
-                    token_generated,
-                    (token_generated - 1) as f64 / dt.as_secs_f64())
+                "{} tokens generated ({} token/s)",
+                token_generated,
+                (token_generated - 1) as f64 / dt.as_secs_f64()
+            )
         }
 
         string
@@ -274,12 +307,12 @@ impl From<(AppState, Option<f64>, Option<f64>, Option<usize>)> for TextGeneratio
         Self::new(
             app_state.model,
             app_state.tokenizer,
-            299792458, // seed RNG
-            temperature,  // temperature
-            top_p,      // top_p - Nucleus sampling probability stuff
-            top_k, // top_k - Nucleus sampling probability stuff
-            1.1,       // repeat penalty
-            64,        // context size to consider for the repeat penalty
+            299792458,   // seed RNG
+            temperature, // temperature
+            top_p,       // top_p - Nucleus sampling probability stuff
+            top_k,       // top_k - Nucleus sampling probability stuff
+            1.1,         // repeat penalty
+            64,          // context size to consider for the repeat penalty
             &app_state.device,
             app_state.config,
         )

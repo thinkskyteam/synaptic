@@ -1,4 +1,7 @@
+use crate::core::load_model::deserialize_weight_map;
 use candle_core::Result;
+use serde::Deserialize;
+use std::collections::HashSet;
 
 pub struct TokenOutputStream {
     tokenizer: tokenizers::Tokenizer,
@@ -81,4 +84,25 @@ impl TokenOutputStream {
         self.prev_index = 0;
         self.current_index = 0;
     }
+}
+
+/// Represents a collection of weight maps.
+///
+/// This struct is used to deserialize a JSON object containing weight maps.
+/// It contains a single field, `weight_map`, which is a set of strings
+/// representing the names or identifiers of the weight maps.
+///
+/// # Fields
+///
+/// - `weight_map`: A `HashSet<String>` that holds the unique identifiers
+///   of the weight maps. This field is populated by deserializing a JSON
+///   object using a custom deserialization function.
+///
+/// The `deserialize_weight_map` function is used to handle the deserialization
+/// of the `weight_map` field, ensuring that it is correctly extracted from
+/// the input JSON.
+#[derive(Debug, Deserialize)]
+pub(crate) struct WeightMaps {
+    #[serde(deserialize_with = "deserialize_weight_map")]
+    pub(crate) weight_map: HashSet<String>,
 }

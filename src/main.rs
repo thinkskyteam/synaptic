@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -7,17 +6,20 @@ use axum::{
     extract::MatchedPath,
     http::{HeaderMap, Request},
     response::Response,
-    Router,
     routing::{get, post},
+    Router,
 };
 
+use synap_forge_llm::core::load_model::initialise_model;
+use synap_forge_llm::openai::http_service::{
+    create_chat_completion, create_completion, create_embedding, delete_model, health, list_models,
+    retrieve_model,
+};
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::trace::TraceLayer;
 use tracing::{info, info_span, Span};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use synap_forge_llm::core::load_model::initialise_model;
-use synap_forge_llm::openai::http_service::{health, create_chat_completion, create_completion, create_embedding, delete_model, list_models, retrieve_model};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,7 +43,10 @@ async fn main() -> Result<()> {
 
     let state = initialise_model(api_token)?;
 
-    info!("Model loaded and is ready now with Elapsed time: {:.2?}", before.elapsed());
+    info!(
+        "Model loaded and is ready now with Elapsed time: {:.2?}",
+        before.elapsed()
+    );
 
     let router = Router::new()
         .route("/health", get(health))
@@ -50,7 +55,10 @@ async fn main() -> Result<()> {
         .route("/completions", post(create_completion))
         .route("/embeddings", post(create_embedding))
         .route("/models", get(list_models))
-        .route("/models/:model_id", get(retrieve_model).delete(delete_model))
+        .route(
+            "/models/:model_id",
+            get(retrieve_model).delete(delete_model),
+        )
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()
@@ -92,9 +100,7 @@ async fn main() -> Result<()> {
                 ),
         );
 
-    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:8000")
-        .await
-        .unwrap();
+    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
     axum::serve(tcp_listener, router).await.unwrap();
 
