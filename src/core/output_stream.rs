@@ -3,6 +3,12 @@ use candle_core::Result;
 use serde::Deserialize;
 use std::collections::HashSet;
 
+/// A stream for processing and decoding tokens using a tokenizer.
+///
+/// The `TokenOutputStream` struct manages a sequence of tokens and provides
+/// methods to decode them into human-readable strings. It keeps track of
+/// the current position in the token stream and allows for incremental
+/// decoding of tokens as they are received.
 pub struct TokenOutputStream {
     tokenizer: tokenizers::Tokenizer,
     tokens: Vec<u32>,
@@ -11,6 +17,16 @@ pub struct TokenOutputStream {
 }
 
 impl TokenOutputStream {
+    /// Creates a new `TokenOutputStream` with the specified tokenizer.
+    ///
+    /// # Parameters
+    ///
+    /// - `tokenizer`: An instance of `tokenizers::Tokenizer` used for
+    ///   encoding and decoding tokens.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new instance of `TokenOutputStream`.
     pub fn new(tokenizer: tokenizers::Tokenizer) -> Self {
         Self {
             tokenizer,
@@ -20,10 +36,26 @@ impl TokenOutputStream {
         }
     }
 
+    /// Consumes the `TokenOutputStream` and returns the underlying tokenizer.
+    ///
+    /// # Returns
+    ///
+    /// Returns the `tokenizers::Tokenizer` instance contained within the
+    /// `TokenOutputStream`.
     pub fn into_inner(self) -> tokenizers::Tokenizer {
         self.tokenizer
     }
 
+    /// Decodes a slice of tokens into a string.
+    ///
+    /// # Parameters
+    ///
+    /// - `tokens`: A slice of token IDs to decode.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<String>` containing the decoded string if successful,
+    /// or an error if decoding fails.
     fn decode(&self, tokens: &[u32]) -> Result<String> {
         match self.tokenizer.decode(tokens, true) {
             Ok(str) => Ok(str),
@@ -31,7 +63,20 @@ impl TokenOutputStream {
         }
     }
 
-    // https://github.com/huggingface/text-generation-inference/blob/5ba53d44a18983a4de32d122f4cb46f4a17d9ef6/server/text_generation_server/models/model.py#L68
+    /// Processes the next token and returns any new text generated.
+    ///
+    /// This method updates the internal state with the provided token and
+    /// checks if it generates new text compared to the previous state.
+    ///
+    /// # Parameters
+    ///
+    /// - `token`: The token ID to process.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Option<String>>`, where `Some(String)` contains
+    /// the newly generated text if applicable, or `None` if no new text
+    /// was generated.
     pub fn next_token(&mut self, token: u32) -> Result<Option<String>> {
         let prev_text = if self.tokens.is_empty() {
             String::new()
@@ -51,6 +96,16 @@ impl TokenOutputStream {
         }
     }
 
+    /// Decodes any remaining tokens and returns new text generated.
+    ///
+    /// This method checks if there is any new text generated from the
+    /// remaining tokens since the last decoding.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Option<String>>`, where `Some(String)` contains
+    /// the newly generated text if applicable, or `None` if no new text
+    /// was generated.
     pub fn decode_rest(&self) -> Result<Option<String>> {
         let prev_text = if self.tokens.is_empty() {
             String::new()
@@ -67,18 +122,43 @@ impl TokenOutputStream {
         }
     }
 
+    /// Decodes all tokens in the stream into a single string.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<String>` containing the decoded string of all
+    /// tokens in the stream.
     pub fn decode_all(&self) -> Result<String> {
         self.decode(&self.tokens)
     }
 
+    /// Retrieves the token ID for a given string representation.
+    ///
+    /// # Parameters
+    ///
+    /// - `token_s`: A string slice representing the token to look up.
+    ///
+    /// # Returns
+    ///
+    /// Returns an `Option<u32>` containing the token ID if found, or `None`
+    /// if the token does not exist in the vocabulary.
     pub fn get_token(&self, token_s: &str) -> Option<u32> {
         self.tokenizer.get_vocab(true).get(token_s).copied()
     }
 
+    /// Returns a reference to the underlying tokenizer.
+    ///
+    /// # Returns
+    ///
+    /// Returns a reference to the `tokenizers::Tokenizer` instance.
     pub fn tokenizer(&self) -> &tokenizers::Tokenizer {
         &self.tokenizer
     }
 
+    /// Clears the token stream and resets the indices.
+    ///
+    /// This method removes all tokens from the stream and resets the
+    /// previous and current index counters to zero.
     pub fn clear(&mut self) {
         self.tokens.clear();
         self.prev_index = 0;
