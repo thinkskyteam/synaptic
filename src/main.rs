@@ -17,6 +17,7 @@ use synap_forge_llm::openai::http_service::{
 };
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::trace::TraceLayer;
+use tracing::log::error;
 use tracing::{info, info_span, Span};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -48,9 +49,8 @@ async fn main() -> Result<()> {
         before.elapsed()
     );
 
-    let router = Router::new()
+    let openai_router = Router::new()
         .route("/health", get(health))
-        // .route("/v1/completions", post(run_completions))
         .route("/chat/completions", post(create_chat_completion))
         .route("/completions", post(create_completion))
         .route("/embeddings", post(create_embedding))
@@ -63,8 +63,7 @@ async fn main() -> Result<()> {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request<_>| {
-                    // Log the matched route's path (with placeholders not filled in).
-                    // Use request.uri() or OriginalUri if you want the real path.
+                    // Create span with request details
                     let matched_path = request
                         .extensions()
                         .get::<MatchedPath>()
@@ -72,37 +71,61 @@ async fn main() -> Result<()> {
 
                     info_span!(
                         "http_request",
-                        method = ?request.method(),
-                        matched_path,
-                        some_other_field = tracing::field::Empty,
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        matched_path = matched_path,
+                        version = ?request.version(),
+                        headers = ?request.headers(),
                     )
                 })
-                .on_request(|_request: &Request<_>, _span: &Span| {
-                    // You can use `_span.record("some_other_field", value)` in one of these
-                    // closures to attach a value to the initially empty field in the info_span
-                    // created above.
+                .on_request(|request: &Request<_>, _span: &Span| {
+                    // Log when request starts
+                    info!(
+                        "Started {} request to {} body {:?}",
+                        request.method(),
+                        request.uri(),
+                        request.body()
+                    );
                 })
-                .on_response(|_response: &Response, _latency: Duration, _span: &Span| {
-                    // ...
+                .on_response(|response: &Response, latency: Duration, _span: &Span| {
+                    // Log response details
+                    info!(
+                        "Response completed with body {:?} status {} in {:?}",
+                        response.body(),
+                        response.status(),
+                        latency
+                    );
                 })
-                .on_body_chunk(|_chunk: &Bytes, _latency: Duration, _span: &Span| {
-                    // ...
+                .on_body_chunk(|chunk: &Bytes, latency: Duration, _span: &Span| {
+                    // Log body chunk details
+                    info!(
+                        "Sent body chunk of size {} bytes after {:?}",
+                        chunk.len(),
+                        latency
+                    );
                 })
                 .on_eos(
-                    |_trailers: Option<&HeaderMap>, _stream_duration: Duration, _span: &Span| {
-                        // ...
+                    |trailers: Option<&HeaderMap>, stream_duration: Duration, _span: &Span| {
+                        // Log end of stream
+                        info!(
+                            "Stream completed in {:?}, trailers: {:?}",
+                            stream_duration, trailers
+                        );
                     },
                 )
                 .on_failure(
-                    |_error: ServerErrorsFailureClass, _latency: Duration, _span: &Span| {
-                        // ...
+                    |error: ServerErrorsFailureClass, latency: Duration, _span: &Span| {
+                        // Log errors
+                        error!("Request failed after {:?}: {:?}", latency, error);
                     },
                 ),
         );
 
+    let main_router = Router::new().nest("/v1", openai_router);
+
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
-    axum::serve(tcp_listener, router).await.unwrap();
+    axum::serve(tcp_listener, main_router).await.unwrap();
 
     Ok(())
 }

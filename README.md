@@ -7,17 +7,22 @@
 A lightweight, high-performance server that provides OpenAI-compatible endpoints for various Large Language Models (LLMs). This allows you to use any OpenAI-compatible client library or application with different LLM backends.
 
 ## Features
-- 🚀 Drop-in replacement for OpenAI API endpoints
+- 🚀 Drop-in replacement for OpenAI API endpoints services
 - 🔄 Support for multiple LLM backends:
-    - Llama 2/3
-    - Mistral
-    - Phi-3
-    - Custom models (extensible architecture)
-- ⚡️ Async processing for high performance
+    - [x] Llama 2/3
+    - [ ] Mistral
+    - [ ] Phi-3
+    - [ ] Custom models (extensible architecture)
+- ⚡️ Async/Sync processing for high performance
+    - [x] Sync processing
+    - [ ] Async processing
 - 🔑 API key authentication
-- 📊 Request rate limiting and quota management
+    - [ ] Token-based Authentication
+    - [ ] OAuth/JWT Supports
 - 🔍 Detailed logging and monitoring
-- 🛡️ Error handling and automatic retries
+    - [x] Support different Logging Level (e.g. Debug, Info, Error)
+      - `RUST_LOG=info cargo run --features metal`
+- 🛡 Error handling and automatic retries
 
 ## Quick Start
 
@@ -42,33 +47,48 @@ pip install openai
 ```
 
 ```python
-from openai import OpenAI
+from openai import OpenAI, DefaultHttpxClient
 
 client = OpenAI(
+    api_key='EMPTY',
     base_url="http://localhost:8000/v1",
-    api_key="your-api-key"
 )
 
-response = client.chat.completions.create(
-    model="local-llama2",
+chat_completion = client.chat.completions.create(
     messages=[
-        {"role": "user", "content": "Hello, how are you?"}
-    ]
+        {
+            "role": "user",
+            "content": "Who won the world series in 2020?"
+        },
+        {
+            "role": "assistant",
+            "content": "The Los Angeles Dodgers won the World Series in 2020."
+        },
+        {
+            "role": "user",
+            "content": "Where was it played?"
+        }
+    ],
+    model="gpt-4o",
 )
+
+print(chat_completion)
 ```
 
 ## API Endpoints
 
 The server implements standard OpenAI-compatible endpoints:
 
-- `/v1/chat/completions` - Chat completions API
-- `/v1/completions` - Text completions API
-- `/v1/embeddings` - Text embeddings API
-- `/v1/models` - Available models list
+- [x] `/v1/chat/completions` - Chat completions API
+- [x] `/v1/completions` - Text completions API
+- [ ] `/v1/embeddings` - Text embeddings API
+- [ ] `/v1/models` - Available models list
 
 ## Docker Support
+Make sure, your docker platform is supporting [NVidia](https://github.com/NVIDIA/nvidia-container-toolkit) 
 
 ```bash
+cargo build --release --features cuda
 docker build -t synap-forge-llm .
 docker run -p 8000:8000 -v llm-proxy-server
 ```
@@ -97,23 +117,23 @@ The server automatically detects and uses available hardware acceleration:
 
 Built-in Prometheus metrics will be available at `/metrics`:
 
-- Request latency
-- Token usage
-- Error rates
-- Model loading time
-- GPU memory usage
+- [ ] Request latency
+- [ ] Token usage
+- [ ] Error rates
+- [ ] Model loading time
+- [ ] GPU memory usage
 
 ## Security Considerations
 
-- API keys are required by default
-- Rate limiting per API key
-- Input validation and sanitization
-- Configurable maximum token limits
-- Request logging and audit trail
+- [ ] API keys are required by default
+- [ ] Rate limiting per API key
+- [ ] Input validation and sanitization
+- [ ] Configurable maximum token limits
+- [ ] Request logging and audit trail
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License Version 2.0, January 2004 - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
@@ -124,5 +144,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - [Documentation](https://llm-proxy-server.readthedocs.io/)
-- [GitHub Issues](https://github.com/yourusername/llm-proxy-server/issues)
-- [Discord Community](https://discord.gg/)
+- [GitHub Issues](https://github.com/synap-forge/synap-forge-llm/issues)
+- [Discord Community](https://discord.gg/vxhGShNJ)

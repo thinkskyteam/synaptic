@@ -56,7 +56,8 @@ impl TextGeneration {
         config: Config,
     ) -> Self {
         let logits_processor = {
-            let temperature = temperature.unwrap();
+            let temperature = temperature.unwrap_or_else(|| 0f64);
+
             let sampling = if temperature <= 0. {
                 Sampling::ArgMax
             } else {
@@ -126,7 +127,7 @@ impl TextGeneration {
         let mut index_pos = 0;
         let mut token_generated = 0;
 
-        for index in 0..max_tokens.unwrap() {
+        for index in 0..max_tokens.unwrap_or_else(|| 064) {
             let (context_size, context_index) = if cache.use_kv_cache && index > 0 {
                 (1, index_pos)
             } else {
