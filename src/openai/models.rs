@@ -16,7 +16,7 @@ pub struct CreateChatCompletionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<i64>,
+    pub c: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,6 +49,8 @@ pub struct CreateChatCompletionRequest {
     pub function_call: Option<FunctionCall>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functions: Option<Vec<ChatCompletionFunctions>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -129,8 +131,8 @@ pub struct ChatCompletionFunctions {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ChatCompletionRequestMessage {
-    role: String,
-    content: String,
+    pub(crate) role: String,
+    pub(crate) content: String,
     // ... other fields
 }
 

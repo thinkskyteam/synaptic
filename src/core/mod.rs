@@ -1,2 +1,3 @@
-pub mod output_stream;
+pub mod generator;
 pub mod load_model;
+pub mod output_stream;
