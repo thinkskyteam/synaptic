@@ -11,6 +11,7 @@ use hf_hub::{Repo, RepoType};
 use serde::{Deserialize, Deserializer};
 use serde_json::from_reader;
 use tokenizers::Tokenizer;
+use tracing::info;
 
 /// Loads SafeTensors weight files from a Hugging Face repository based on a JSON configuration.
 ///
@@ -187,6 +188,8 @@ fn get_device() -> Device {
     let device_metal = Device::new_metal(0);
 
     let device = device_metal.or(device_cuda).unwrap_or(Device::Cpu);
+
+    info!("Device Info {:?}", device);
 
     device
 }

@@ -1,10 +1,10 @@
 use crate::core::generator::TextGeneration;
 use crate::openai::http_entities::AppState;
 use crate::openai::models::{
-    ChatCompletionChoice, ChatCompletionRequestMessage, ChatCompletionResponseMessage,
-    CompletionChoice, CreateChatCompletionRequest, CreateChatCompletionResponse,
-    CreateCompletionRequest, CreateCompletionResponse, CreateEmbeddingRequest,
-    CreateEmbeddingResponse, DeleteModelResponse, Embedding, ListModelsResponse, Model, Stop,
+    ChatCompletionChoice, ChatCompletionResponseMessage, CompletionChoice,
+    CreateChatCompletionRequest, CreateChatCompletionResponse, CreateCompletionRequest,
+    CreateCompletionResponse, CreateEmbeddingRequest, CreateEmbeddingResponse, DeleteModelResponse,
+    Embedding, ListModelsResponse, Model, Stop,
 };
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -29,11 +29,11 @@ use uuid::Uuid;
 pub async fn health(State(state): State<AppState>) -> &'static str {
     trace!("Health endpoint called");
 
-    debug!("Model state is {}", state.device.is_metal());
+    info!("Model state is {}", state.device.is_metal());
 
-    debug!("Model state is {}", state.device.is_cpu());
+    info!("Model state is {}", state.device.is_cpu());
 
-    debug!("Model state is {}", state.device.is_cuda());
+    info!("Model state is {}", state.device.is_cuda());
 
     "Service is up!"
 }

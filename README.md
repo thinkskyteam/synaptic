@@ -28,11 +28,23 @@ A lightweight, high-performance server that provides OpenAI-compatible endpoints
 
 ### Installation
 
+#### MacOS
 ```bash
 cargo build --release --features metal
 ```
 
+#### Windows/Linux with NVidia GPU
+```bash
+cargo build --release --features cuda
+```
+
 ### Basic Usage
+
+#### Prerequisite
+
+```bash
+export HF_TOKEN=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
+```
 
 1. Start the server:
 
@@ -74,6 +86,9 @@ chat_completion = client.chat.completions.create(
 
 print(chat_completion)
 ```
+
+## Roadmap
+[Roadmap of the project](https://github.com/users/synap-forge/projects/1)
 
 ## API Endpoints
 
@@ -143,6 +158,6 @@ This project is licensed under the Apache License Version 2.0, January 2004 - se
 
 ## Support
 
-- [Documentation](https://llm-proxy-server.readthedocs.io/)
+- [Documentation](https://synap-forge-llm.readthedocs.io/)
 - [GitHub Issues](https://github.com/synap-forge/synap-forge-llm/issues)
 - [Discord Community](https://discord.gg/vxhGShNJ)
