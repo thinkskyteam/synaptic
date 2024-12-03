@@ -43,7 +43,7 @@ cargo build --release --features cuda
 #### Prerequisite
 
 ```bash
-export HF_TOKEN=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
+export HF_TOKEN=xx_xxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 1. Start the server:
