@@ -269,7 +269,7 @@ pub fn initialise_model(token: String) -> anyhow::Result<AppState> {
     let config = get_config(&repo)?;
 
     let model = {
-        let dtype = DType::F64;
+        let dtype = DType::F32;
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&filenames, dtype, &device)? };
         Llama3::load(vb, &config)?
     };
