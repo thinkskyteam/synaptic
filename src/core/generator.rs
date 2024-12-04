@@ -121,7 +121,7 @@ impl TextGeneration {
 
         let mut string = String::new();
 
-        let mut cache = Cache::new(false, DType::F16, &origin_config, &self.device).unwrap();
+        let mut cache = Cache::new(false, DType::F64, &origin_config, &self.device).unwrap();
 
         let mut start_gen = std::time::Instant::now();
         let mut index_pos = 0;
