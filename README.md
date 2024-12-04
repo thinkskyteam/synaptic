@@ -35,7 +35,7 @@ cargo build --release --features metal
 
 #### Windows/Linux with NVidia GPU
 ```bash
-cargo build --release --features cuda
+cargo build --release --features=cuda,cudnn
 ```
 
 ### Basic Usage
