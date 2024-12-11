@@ -220,13 +220,13 @@ fn get_device() -> Device {
 /// - There is an issue creating the repository for the specified model.
 fn get_repo(token: String) -> anyhow::Result<ApiRepo> {
     let api = ApiBuilder::new().with_token(Some(token)).build()?;
-    // "meta-llama/Meta-Llama-3.1-8B"
-    // "591fbcb2d5b475bbfc7976a9214934652c64149b"
-    let model_id = "meta-llama/Llama-3.2-3B-Instruct".to_string();
+    // "meta-llama/Llama-3.2-3B-Instruct"
+    // "45026b798cd537efe6a1abcb93040ad21d416c43"
+    let model_id = "meta-llama/Llama-3.1-8B-Instruct".to_string();
     Ok(api.repo(Repo::with_revision(
         model_id,
         RepoType::Model,
-        "45026b798cd537efe6a1abcb93040ad21d416c43".to_string(),
+        "0e9e39f249a16976918f6564b8830bc894c89659".to_string(),
     )))
 }
 
