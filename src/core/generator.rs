@@ -123,7 +123,7 @@ impl TextGeneration {
 
         let mut text_generated = String::new();
 
-        let mut cache = Cache::new(false, DType::F32, &origin_config, &self.device).unwrap();
+        let mut cache = Cache::new(true, DType::F16, &origin_config, &self.device).unwrap();
 
         let mut start_gen = std::time::Instant::now();
         let mut index_pos = 0;

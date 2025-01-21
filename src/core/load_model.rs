@@ -263,20 +263,14 @@ pub fn initialise_model(token: String, dtype: DType) -> anyhow::Result<AppState>
     let file_path = match hub_load_safe_tensors(&repo, "model.safetensors.index.json") {
         Ok(files) => files,
         Err(_) => {
-            // Run this line if an error occurs
-            let vec1 = vec![repo.get("model.safetensors")?];
-            vec1
+            // Fetch the model.safetensors file directly
+            vec![repo.get("model.safetensors")?]
         }
     };
 
     let config = get_config(&repo)?;
 
     let model = {
-        // let vb = if self.use_pth {
-        //     VarBuilder::from_pth(&weights_filename, DTYPE, &device)?
-        // } else {
-        //     unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DTYPE, &device)? }
-        // };
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&*file_path, dtype, &device)? };
         Llama3::load(vb, &config)?
     };
