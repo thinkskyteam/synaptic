@@ -1,20 +1,22 @@
 use crate::core::output_stream::TokenOutputStream;
-use crate::openai::http_entities::AppState;
+use crate::openai::models::AppState;
 use anyhow::Error;
 use candle_core::{DType, Device, Tensor};
 use candle_transformers::generation::{LogitsProcessor, Sampling};
-use candle_transformers::models::llama::{Cache, Config, Llama as Llama3, LlamaEosToks};
+use candle_transformers::models::llama::{Cache, Config, Llama, LlamaEosToks};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use tokenizers::Tokenizer;
 use tracing::info;
 
 /// A struct representing text generation using the Llama3 model.
 ///
-/// The `TextGeneration` struct contains fields for the Llama3 model, device,
+/// The `TextGeneration` struct contains fields for the Llama model, device,
 /// tokenizer, logits processor, repeat penalty, repeat last n, and configuration.
 /// It provides methods to create a new `TextGeneration` instance and generate
 /// text based on a given prompt.
 pub struct TextGeneration {
-    model: Llama3,
+    model: Llama,
     device: Device,
     tokenizer: TokenOutputStream,
     logits_processor: LogitsProcessor,
@@ -28,7 +30,7 @@ impl TextGeneration {
     ///
     /// # Arguments
     ///
-    /// * `model` - The Llama3 model to use for text generation.
+    /// * `model` - The Llama model to use for text generation.
     /// * `tokenizer` - The tokenizer to use for encoding and decoding text.
     /// * `seed` - The seed value for the random number generator.
     /// * `temperature` - Optional temperature value for sampling.
@@ -44,7 +46,7 @@ impl TextGeneration {
     /// A new `TextGeneration` instance with the specified parameters.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        model: Llama3,
+        model: Llama,
         tokenizer: Tokenizer,
         seed: u64,
         temperature: Option<f64>,
@@ -92,7 +94,7 @@ impl TextGeneration {
     /// # Returns
     ///
     /// The generated text as a string.
-    pub(crate) fn generate(mut self, prompt: String, max_tokens: Option<i32>) -> String {
+    pub(crate) fn generate(mut self, prompt: String, max_tokens: Option<i32>) -> (String, i32) {
         self.tokenizer.clear();
         let mut tokens = self
             .tokenizer
@@ -119,7 +121,7 @@ impl TextGeneration {
 
         info!("End of S {:?} token", eos_token_value);
 
-        let mut string = String::new();
+        let mut text_generated = String::new();
 
         let mut cache = Cache::new(false, DType::F32, &origin_config, &self.device).unwrap();
 
@@ -182,11 +184,11 @@ impl TextGeneration {
 
             if let Some(t) = self.tokenizer.next_token(next_token).unwrap() {
                 info!("Found a token! {}", t);
-                string.push_str(&t);
+                text_generated.push_str(&t);
             }
 
             if let Some(rest) = self.tokenizer.decode_rest().map_err(Error::msg).unwrap() {
-                print!("{rest}");
+                info!("{rest}");
             }
             let dt = start_gen.elapsed();
             info!(
@@ -196,7 +198,7 @@ impl TextGeneration {
             )
         }
 
-        string
+        (text_generated, token_generated)
     }
 }
 

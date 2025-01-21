@@ -1,7 +1,6 @@
-use std::collections::HashSet;
-
 use crate::core::output_stream::WeightMaps;
-use crate::openai::http_entities::AppState;
+use crate::core::{MODEL_NAME, MODEL_REVISION};
+use crate::openai::models::AppState;
 use anyhow::Error as E;
 use candle_core::{DType, Device};
 use candle_nn::VarBuilder;
@@ -10,6 +9,8 @@ use hf_hub::api::sync::{ApiBuilder, ApiRepo};
 use hf_hub::{Repo, RepoType};
 use serde::{Deserialize, Deserializer};
 use serde_json::from_reader;
+use std::collections::HashSet;
+use std::path::PathBuf;
 use tokenizers::Tokenizer;
 use tracing::info;
 
@@ -50,21 +51,18 @@ use tracing::info;
 /// The JSON file should contain a `weight_map` field that specifies the paths to the SafeTensors
 /// weight files within the repository. The function assumes that all paths in the weight map are valid
 /// and accessible within the repository.
-pub fn hub_load_safe_tensors(
-    repo: &ApiRepo,
-    json_file: &str,
-) -> anyhow::Result<Vec<std::path::PathBuf>> {
+pub fn hub_load_safe_tensors(repo: &ApiRepo, json_file: &str) -> anyhow::Result<Vec<PathBuf>> {
     let json_file = repo.get(json_file).map_err(candle_core::Error::wrap)?;
     let json_file = std::fs::File::open(json_file)?;
     let json: WeightMaps = from_reader(&json_file).map_err(candle_core::Error::wrap)?;
 
-    let pathbufs: Vec<std::path::PathBuf> = json
+    let path_bufs: Vec<PathBuf> = json
         .weight_map
         .iter()
         .map(|f| repo.get(f).unwrap())
         .collect();
 
-    Ok(pathbufs)
+    Ok(path_bufs)
 }
 
 /// Deserializes a JSON object into a `HashSet<String>`.
@@ -220,13 +218,11 @@ fn get_device() -> Device {
 /// - There is an issue creating the repository for the specified model.
 fn get_repo(token: String) -> anyhow::Result<ApiRepo> {
     let api = ApiBuilder::new().with_token(Some(token)).build()?;
-    // "meta-llama/Llama-3.2-3B-Instruct"
-    // "45026b798cd537efe6a1abcb93040ad21d416c43"
-    let model_id = "meta-llama/Llama-3.1-8B-Instruct".to_string();
+    let model_id = MODEL_NAME.to_string();
     Ok(api.repo(Repo::with_revision(
         model_id,
         RepoType::Model,
-        "0e9e39f249a16976918f6564b8830bc894c89659".to_string(),
+        MODEL_REVISION.to_string(),
     )))
 }
 
@@ -258,19 +254,30 @@ fn get_repo(token: String) -> anyhow::Result<ApiRepo> {
 /// - There is an issue loading the safe tensor files.
 /// - The configuration cannot be retrieved from the repository.
 /// - The model fails to load from the safe tensor files.
-pub fn initialise_model(token: String) -> anyhow::Result<AppState> {
+pub fn initialise_model(token: String, dtype: DType) -> anyhow::Result<AppState> {
     let repo = get_repo(token)?;
     let tokenizer = get_tokenizer(&repo)?;
 
     let device = get_device();
 
-    let filenames = hub_load_safe_tensors(&repo, "model.safetensors.index.json")?;
+    let file_path = match hub_load_safe_tensors(&repo, "model.safetensors.index.json") {
+        Ok(files) => files,
+        Err(_) => {
+            // Run this line if an error occurs
+            let vec1 = vec![repo.get("model.safetensors")?];
+            vec1
+        }
+    };
 
     let config = get_config(&repo)?;
 
     let model = {
-        let dtype = DType::F32;
-        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&filenames, dtype, &device)? };
+        // let vb = if self.use_pth {
+        //     VarBuilder::from_pth(&weights_filename, DTYPE, &device)?
+        // } else {
+        //     unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], DTYPE, &device)? }
+        // };
+        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&*file_path, dtype, &device)? };
         Llama3::load(vb, &config)?
     };
 

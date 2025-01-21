@@ -9,16 +9,17 @@ use axum::{
     routing::{get, post},
     Router,
 };
-
+use candle_core::DType;
 use synap_forge_llm::core::load_model::initialise_model;
 use synap_forge_llm::openai::http_service::{
     create_chat_completion, create_completion, create_embedding, delete_model, health, list_models,
     retrieve_model,
 };
+use synap_forge_llm::openai::models::AppState;
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::trace::TraceLayer;
 use tracing::log::error;
-use tracing::{info, info_span, Span};
+use tracing::{debug, debug_span, info, info_span, Span};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -39,14 +40,21 @@ async fn main() -> Result<()> {
         return Err(anyhow::anyhow!("Error getting HF_TOKEN env var"));
     };
 
-    let before = Instant::now();
     info!("Model is loading in memory");
+    let before = Instant::now();
 
-    let state = initialise_model(api_token)?;
+    let state: AppState;
+
+    let dtype = DType::F32;
+    #[cfg(any(feature = "metal", feature = "default"))]
+    {
+        state = initialise_model(api_token, dtype)?;
+    }
+    let after = Instant::now();
 
     info!(
         "Model loaded and is ready now with Elapsed time: {:.2?}",
-        before.elapsed()
+        Duration::from_secs(after.duration_since(before).as_millis() as u64)
     );
 
     let openai_router = Router::new()
@@ -69,7 +77,7 @@ async fn main() -> Result<()> {
                         .get::<MatchedPath>()
                         .map(MatchedPath::as_str);
 
-                    info_span!(
+                    debug_span!(
                         "http_request",
                         method = %request.method(),
                         uri = %request.uri(),
@@ -80,7 +88,7 @@ async fn main() -> Result<()> {
                 })
                 .on_request(|request: &Request<_>, _span: &Span| {
                     // Log when request starts
-                    info!(
+                    debug!(
                         "Started {} request to {} body {:?}",
                         request.method(),
                         request.uri(),
@@ -89,7 +97,7 @@ async fn main() -> Result<()> {
                 })
                 .on_response(|response: &Response, latency: Duration, _span: &Span| {
                     // Log response details
-                    info!(
+                    debug!(
                         "Response completed with body {:?} status {} in {:?}",
                         response.body(),
                         response.status(),
@@ -98,7 +106,7 @@ async fn main() -> Result<()> {
                 })
                 .on_body_chunk(|chunk: &Bytes, latency: Duration, _span: &Span| {
                     // Log body chunk details
-                    info!(
+                    debug!(
                         "Sent body chunk of size {} bytes after {:?}",
                         chunk.len(),
                         latency
@@ -107,7 +115,7 @@ async fn main() -> Result<()> {
                 .on_eos(
                     |trailers: Option<&HeaderMap>, stream_duration: Duration, _span: &Span| {
                         // Log end of stream
-                        info!(
+                        debug!(
                             "Stream completed in {:?}, trailers: {:?}",
                             stream_duration, trailers
                         );

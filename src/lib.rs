@@ -1,2 +1,3 @@
-pub mod openai;
 pub mod core;
+mod embedding;
+pub mod openai;

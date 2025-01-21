@@ -1,6 +1,8 @@
+use candle_core::Device;
+use candle_transformers::models::llama::{Config, Llama};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
+use tokenizers::Tokenizer;
 // Models
 
 #[derive(Serialize, Deserialize)]
@@ -143,7 +145,7 @@ pub(crate) struct CreateChatCompletionResponse {
     pub(crate) created: i64,
     pub(crate) model: String,
     pub(crate) choices: Vec<ChatCompletionChoice>,
-    // ... other fields
+    pub(crate) usage: Option<CompletionUsage>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -203,7 +205,7 @@ pub(crate) struct CreateCompletionResponse {
     pub(crate) created: i64,
     pub(crate) model: String,
     pub(crate) choices: Vec<CompletionChoice>,
-    // ... other fields
+    pub(crate) usage: Option<CompletionUsage>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -214,10 +216,17 @@ pub struct CompletionChoice {
     pub finish_reason: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CompletionUsage {
+    pub completion_tokens: i32,
+    pub prompt_tokens: i32,
+    pub total_tokens: i32,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct CreateEmbeddingRequest {
     pub model: String,
-    input: String,
+    pub input: String,
     // ... other fields
 }
 
@@ -226,7 +235,7 @@ pub struct CreateEmbeddingResponse {
     pub object: String,
     pub data: Vec<Embedding>,
     pub model: String,
-    // ... other fields
+    pub usage: EmbeddingUsage,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -234,6 +243,12 @@ pub struct Embedding {
     pub object: String,
     pub embedding: Vec<f64>,
     pub index: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EmbeddingUsage {
+    pub prompt_tokens: i32,
+    pub total_tokens: i32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -255,4 +270,23 @@ pub struct DeleteModelResponse {
     pub id: String,
     pub object: String,
     pub deleted: bool,
+}
+
+#[derive(Clone)]
+pub struct AppState {
+    pub(crate) model: Llama,
+    pub(crate) device: Device,
+    pub(crate) tokenizer: Tokenizer,
+    pub(crate) config: Config,
+}
+
+impl From<(Llama, Device, Tokenizer, Config)> for AppState {
+    fn from(e: (Llama, Device, Tokenizer, Config)) -> Self {
+        Self {
+            model: e.0,
+            device: e.1,
+            tokenizer: e.2,
+            config: e.3,
+        }
+    }
 }

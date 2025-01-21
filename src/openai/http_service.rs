@@ -1,5 +1,7 @@
 use crate::core::generator::TextGeneration;
-use crate::openai::http_entities::AppState;
+use crate::core::{MODEL_NAME, MODEL_REVISION};
+use crate::embedding::lib::CandleEmbedBuilder;
+use crate::openai::models::{AppState, CompletionUsage, EmbeddingUsage};
 use crate::openai::models::{
     ChatCompletionChoice, ChatCompletionResponseMessage, CompletionChoice,
     CreateChatCompletionRequest, CreateChatCompletionResponse, CreateCompletionRequest,
@@ -11,7 +13,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use chrono::Utc;
-use tracing::{debug, info, trace};
+use tracing::{info, trace};
 use uuid::Uuid;
 
 /// Health check endpoint.
@@ -74,16 +76,21 @@ pub async fn create_chat_completion(
     let response = CreateChatCompletionResponse {
         id: Uuid::new_v4().to_string(),
         object: "text_completion".to_string(),
-        created: Utc::now().timestamp_millis(),
-        model: "Llama-3.2-3B-Instruct".parse().unwrap(),
+        created: Utc::now().timestamp(),
+        model: MODEL_NAME.to_string(),
         choices: vec![ChatCompletionChoice {
             index: 0,
             message: ChatCompletionResponseMessage {
                 role: "assistant".to_string(),
-                content: content_result.to_string(),
+                content: content_result.0.to_string(),
             },
             finish_reason: "stop".to_string(),
         }],
+        usage: Option::from(CompletionUsage {
+            completion_tokens: content_result.1,
+            total_tokens: 0,
+            prompt_tokens: 0,
+        }),
     };
 
     info!("create_chat_completion is done");
@@ -118,17 +125,25 @@ pub async fn create_completion(
 
     let result = text_gen.generate(prompt, max_tokens);
 
+    info!("The result is: {:?}", result.0);
+    info!("The token generated is: {:?}", result.1);
+
     let response = CreateCompletionResponse {
         id: Uuid::new_v4().to_string(),
         object: "text_completion".to_string(),
-        created: Utc::now().timestamp_millis(),
-        model: "Llama-3.2-3B-Instruct".parse().unwrap(),
+        created: Utc::now().timestamp(),
+        model: MODEL_NAME.to_string(),
         choices: vec![CompletionChoice {
-            text: result.to_string(),
+            text: result.0.to_string(),
             index: 0,
             logprobs: None,
             finish_reason: "stop".to_string(),
         }],
+        usage: Option::from(CompletionUsage {
+            completion_tokens: result.1,
+            total_tokens: 0,
+            prompt_tokens: 0,
+        }),
     };
 
     (StatusCode::OK, Json(response))
@@ -152,14 +167,28 @@ pub async fn create_embedding(
     Json(req): Json<CreateEmbeddingRequest>,
 ) -> impl IntoResponse {
     // TODO: Process request and return response
+    let candle_embed = CandleEmbedBuilder::new().build().unwrap();
+
+    // Embed a single text
+    let embeddings = candle_embed
+        .embed_one(req.input.as_str(), None)
+        .unwrap()
+        .into_iter()
+        .map(|x| x as f64)
+        .collect();
+
     let response = CreateEmbeddingResponse {
         object: "list".to_string(),
         data: vec![Embedding {
             object: "embedding".to_string(),
-            embedding: vec![0.1, 0.2, 0.3],
+            embedding: embeddings,
             index: 0,
         }],
         model: req.model,
+        usage: EmbeddingUsage {
+            prompt_tokens: 0,
+            total_tokens: 0,
+        },
     };
 
     (StatusCode::OK, Json(response))
