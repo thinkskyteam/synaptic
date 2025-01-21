@@ -1,4 +1,4 @@
-use candle_core::Device;
+use candle_core::{DType, Device};
 use candle_transformers::models::llama::{Config, Llama};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -167,7 +167,7 @@ pub struct CreateCompletionRequest {
     pub prompt: Option<String>,
     pub best_of: Option<i32>,
     pub echo: Option<bool>,
-    pub frequency_penalty: Option<f32>,
+    pub frequency_penalty: Option<f64>,
     pub logit_bias: Option<HashMap<String, i32>>,
     pub logprobs: Option<i32>,
     pub max_tokens: Option<i32>,
@@ -278,15 +278,17 @@ pub struct AppState {
     pub(crate) device: Device,
     pub(crate) tokenizer: Tokenizer,
     pub(crate) config: Config,
+    pub(crate) d_type: DType,
 }
 
-impl From<(Llama, Device, Tokenizer, Config)> for AppState {
-    fn from(e: (Llama, Device, Tokenizer, Config)) -> Self {
+impl From<(Llama, Device, Tokenizer, Config, DType)> for AppState {
+    fn from(e: (Llama, Device, Tokenizer, Config, DType)) -> Self {
         Self {
             model: e.0,
             device: e.1,
             tokenizer: e.2,
             config: e.3,
+            d_type: e.4,
         }
     }
 }

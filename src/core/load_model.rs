@@ -254,11 +254,12 @@ fn get_repo(token: String) -> anyhow::Result<ApiRepo> {
 /// - There is an issue loading the safe tensor files.
 /// - The configuration cannot be retrieved from the repository.
 /// - The model fails to load from the safe tensor files.
-pub fn initialise_model(token: String, dtype: DType) -> anyhow::Result<AppState> {
+pub fn initialise_model(token: String) -> anyhow::Result<AppState> {
     let repo = get_repo(token)?;
     let tokenizer = get_tokenizer(&repo)?;
 
     let device = get_device();
+    let d_type = DType::F16;
 
     let file_path = match hub_load_safe_tensors(&repo, "model.safetensors.index.json") {
         Ok(files) => files,
@@ -271,9 +272,9 @@ pub fn initialise_model(token: String, dtype: DType) -> anyhow::Result<AppState>
     let config = get_config(&repo)?;
 
     let model = {
-        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&*file_path, dtype, &device)? };
+        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&*file_path, d_type, &device)? };
         Llama3::load(vb, &config)?
     };
 
-    Ok((model, device, tokenizer, config).into())
+    Ok((model, device, tokenizer, config, d_type).into())
 }

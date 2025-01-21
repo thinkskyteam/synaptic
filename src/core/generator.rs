@@ -7,7 +7,7 @@ use candle_transformers::models::llama::{Cache, Config, Llama, LlamaEosToks};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokenizers::Tokenizer;
-use tracing::info;
+use tracing::{error, info};
 
 /// A struct representing text generation using the Llama3 model.
 ///
@@ -20,7 +20,7 @@ pub struct TextGeneration {
     device: Device,
     tokenizer: TokenOutputStream,
     logits_processor: LogitsProcessor,
-    repeat_penalty: f32,
+    repeat_penalty: f64,
     repeat_last_n: usize,
     pub(crate) config: Config,
 }
@@ -48,11 +48,11 @@ impl TextGeneration {
     pub(crate) fn new(
         model: Llama,
         tokenizer: Tokenizer,
-        seed: u64,
+        seed: i64,
         temperature: Option<f64>,
         top_p: Option<f64>,
         top_k: Option<usize>,
-        repeat_penalty: f32,
+        repeat_penalty: f64,
         repeat_last_n: usize,
         device: &Device,
         config: Config,
@@ -70,7 +70,7 @@ impl TextGeneration {
                     (Some(k), Some(p)) => Sampling::TopKThenTopP { k, p, temperature },
                 }
             };
-            LogitsProcessor::from_sampling(seed, sampling)
+            LogitsProcessor::from_sampling(seed as u64, sampling)
         };
 
         Self {
@@ -94,7 +94,12 @@ impl TextGeneration {
     /// # Returns
     ///
     /// The generated text as a string.
-    pub(crate) fn generate(mut self, prompt: String, max_tokens: Option<i32>) -> (String, i32) {
+    pub(crate) fn generate(
+        mut self,
+        prompt: String,
+        max_tokens: Option<i32>,
+        d_type: DType,
+    ) -> (String, i32) {
         self.tokenizer.clear();
         let mut tokens = self
             .tokenizer
@@ -110,8 +115,8 @@ impl TextGeneration {
 
         let eos_token = self.config.eos_token_id.or_else(|| {
             let option = self.tokenizer.tokenizer().token_to_id("</s>").unwrap();
-            let toks = LlamaEosToks::Single(option);
-            Some(toks)
+            let tokes = LlamaEosToks::Single(option);
+            Some(tokes)
         });
 
         let eos_token_value = match eos_token.clone().unwrap() {
@@ -123,7 +128,7 @@ impl TextGeneration {
 
         let mut text_generated = String::new();
 
-        let mut cache = Cache::new(true, DType::F16, &origin_config, &self.device).unwrap();
+        let mut cache = Cache::new(true, d_type, &origin_config, &self.device).unwrap();
 
         let mut start_gen = std::time::Instant::now();
         let mut index_pos = 0;
@@ -157,14 +162,20 @@ impl TextGeneration {
                 let start_at = tokens.len().saturating_sub(self.repeat_last_n);
                 candle_transformers::utils::apply_repeat_penalty(
                     &logits,
-                    self.repeat_penalty,
+                    self.repeat_penalty as f32,
                     &tokens[start_at..],
                 )
                 .unwrap()
             };
             index_pos += ctxt.len();
 
-            let next_token = self.logits_processor.sample(&logits).unwrap();
+            let next_token = match self.logits_processor.sample(&logits) {
+                Ok(nx_token) => nx_token,
+                Err(err) => {
+                    error!("Error in sampling: {:?}", err);
+                    break;
+                }
+            };
             token_generated += 1;
             tokens.push(next_token);
 
@@ -202,31 +213,39 @@ impl TextGeneration {
     }
 }
 
-impl From<(AppState, Option<f64>, Option<f64>, Option<usize>)> for TextGeneration {
-    /// Creates a new `TextGeneration` instance from an `AppState` tuple.
-    ///
-    /// # Arguments
-    ///
-    /// * `tuple` - A tuple containing the `AppState`, optional temperature,
-    ///             optional top-p, and optional top-k values.
-    ///
-    /// # Returns
-    ///
-    /// A new `TextGeneration` instance with the specified parameters.
-    fn from(tuple: (AppState, Option<f64>, Option<f64>, Option<usize>)) -> Self {
-        let (app_state, temperature, top_p, top_k) = tuple;
-
+impl
+    From<(
+        AppState,
+        Option<f64>,
+        Option<f64>,
+        Option<usize>,
+        Option<i64>,
+        Option<f64>,
+        Option<usize>,
+    )> for TextGeneration
+{
+    fn from(
+        tuple: (
+            AppState,
+            Option<f64>,
+            Option<f64>,
+            Option<usize>,
+            Option<i64>,
+            Option<f64>,
+            Option<usize>,
+        ),
+    ) -> Self {
         Self::new(
-            app_state.model,
-            app_state.tokenizer,
-            299792458,   // seed RNG
-            temperature, // temperature
-            top_p,       // top_p - Nucleus sampling probability stuff
-            top_k,       // top_k - Nucleus sampling probability stuff
-            1.1,         // repeat penalty
-            64,          // context size to consider for the repeat penalty
-            &app_state.device,
-            app_state.config,
+            tuple.0.model,
+            tuple.0.tokenizer,
+            tuple.4.unwrap_or_else(|| 299792458), // seed RNG
+            tuple.1,                              // temperature
+            tuple.2,                              // top_p - Nucleus sampling probability stuff
+            tuple.3,                              // top_k - Nucleus sampling probability stuff
+            tuple.5.unwrap_or_else(|| 1f64),      // repeat penalty (repeat_penalty)
+            tuple.6.unwrap_or_else(|| 64),        // context size to consider for the repeat penalty
+            &tuple.0.device,
+            tuple.0.config,
         )
     }
 }

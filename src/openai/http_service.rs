@@ -12,8 +12,10 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use candle_core::DType;
 use chrono::Utc;
-use tracing::{info, trace};
+use std::os::macos::raw::stat;
+use tracing::{debug, info, trace};
 use uuid::Uuid;
 
 /// Health check endpoint.
@@ -58,8 +60,24 @@ pub async fn create_chat_completion(
     State(state): State<AppState>,
     Json(request): Json<CreateChatCompletionRequest>,
 ) -> impl IntoResponse {
-    let request_tuple: (AppState, Option<f64>, Option<f64>, Option<usize>) =
-        (state, request.temperature, request.top_p, None);
+    let d_type = state.d_type.clone();
+    let request_tuple: (
+        AppState,
+        Option<f64>,
+        Option<f64>,
+        Option<usize>,
+        Option<i64>,
+        Option<f64>,
+        Option<usize>,
+    ) = (
+        state,
+        request.temperature,
+        request.top_p,
+        None,
+        request.seed,
+        request.frequency_penalty,
+        None,
+    );
     let text_gen = TextGeneration::from(request_tuple);
     let max_tokens = request.max_tokens;
 
@@ -70,8 +88,7 @@ pub async fn create_chat_completion(
         .collect();
     let messages = content_vec.join(" ");
     info!("Messages {}", messages);
-
-    let content_result = text_gen.generate(messages, max_tokens);
+    let content_result = text_gen.generate(messages, max_tokens, d_type);
 
     let response = CreateChatCompletionResponse {
         id: Uuid::new_v4().to_string(),
@@ -116,17 +133,34 @@ pub async fn create_completion(
     State(state): State<AppState>,
     Json(request): Json<CreateCompletionRequest>,
 ) -> impl IntoResponse {
-    let request_tuple: (AppState, Option<f64>, Option<f64>, Option<usize>) =
-        (state, request.temperature, request.top_p, None);
+    let d_type = state.d_type.clone();
+
+    let request_tuple: (
+        AppState,
+        Option<f64>,
+        Option<f64>,
+        Option<usize>,
+        Option<i64>,
+        Option<f64>,
+        Option<usize>,
+    ) = (
+        state,
+        request.temperature,
+        request.top_p,
+        None,
+        request.seed,
+        request.frequency_penalty,
+        None,
+    );
     let text_gen = TextGeneration::from(request_tuple);
 
     let prompt = String::from(request.prompt.unwrap());
     let max_tokens = request.max_tokens;
 
-    let result = text_gen.generate(prompt, max_tokens);
+    let result = text_gen.generate(prompt, max_tokens, d_type);
 
-    info!("The result is: {:?}", result.0);
-    info!("The token generated is: {:?}", result.1);
+    debug!("The result is: {:?}", result.0);
+    debug!("The token generated is: {:?}", result.1);
 
     let response = CreateCompletionResponse {
         id: Uuid::new_v4().to_string(),

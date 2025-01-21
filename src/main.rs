@@ -45,10 +45,9 @@ async fn main() -> Result<()> {
 
     let state: AppState;
 
-    let dtype = DType::F16;
     #[cfg(any(feature = "metal", feature = "default"))]
     {
-        state = initialise_model(api_token, dtype)?;
+        state = initialise_model(api_token)?;
     }
     let after = Instant::now();
 
