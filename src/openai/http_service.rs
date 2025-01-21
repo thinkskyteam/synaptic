@@ -14,7 +14,6 @@ use axum::response::IntoResponse;
 use axum::Json;
 use candle_core::DType;
 use chrono::Utc;
-use std::os::macos::raw::stat;
 use tracing::{debug, info, trace};
 use uuid::Uuid;
 
